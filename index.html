@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>M3U8 编辑器 a-Shell base64单行版</title>
+<title>M3U8 编辑器 a-Shell base64 修复版</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
 body{background:#12121a;color:#eee;padding:12px;line-height:1.5}
@@ -52,16 +52,14 @@ pre{background:#0b0b16;padding:10px;border-radius:6px;overflow-x:auto;font-size:
 </select>
 </div>
 <div>
-<label class="tip">MP3码率</label>
-<select id="abrSel">
-<option value="128k">128k</option>
-<option value="192k" selected>192k</option>
-<option value="256k">256k</option>
-<option value="320k">320k</option>
+<label class="tip">base64 解码参数</label>
+<select id="b64Param">
+<option value="-d" selected>-d (GNU)</option>
+<option value="-D">-D (BSD/macOS)</option>
 </select>
 </div>
 </div>
-<div class="tip">Base64单行命令，a-Shell粘贴不会逐行执行，无EOF问题</div>
+<div class="tip">原生TextEncoder二进制编码，不再使用unescape兼容方案</div>
 </div>
 
 <div class="box">
@@ -90,7 +88,12 @@ pre{background:#0b0b16;padding:10px;border-radius:6px;overflow-x:auto;font-size:
 </div>
 
 <div class="box">
-<h3>生成命令（整条只有一行，直接复制粘贴）</h3>
+<h3>解码预览（调试用，检查解码后m3u8是否正确）</h3>
+<pre id="debugPreview"></pre>
+</div>
+
+<div class="box">
+<h3>生成命令（整条一行复制）</h3>
 <pre id="cmdOut"></pre>
 <div class="row">
 <button onclick="copyCmd()">复制命令</button>
@@ -105,11 +108,12 @@ const rawEl = document.getElementById('m3u8Raw');
 const sliceListEl = document.getElementById('sliceList');
 const sliceStatEl = document.getElementById('sliceStat');
 const cmdOutEl = document.getElementById('cmdOut');
+const debugPreview = document.getElementById('debugPreview');
 const previewVid = document.getElementById('previewVideo');
 const outDirEl = document.getElementById('outDir');
 const outFileEl = document.getElementById('outName');
 const fmtSel = document.getElementById('fmtSel');
-const abrSel = document.getElementById('abrSel');
+const b64ParamEl = document.getElementById('b64Param');
 
 function parseM3U8(){
     const raw = rawEl.value.trim();
@@ -164,6 +168,15 @@ function previewSlice(i){
     previewVid.play();
 }
 
+// 原生正确 base64 编码：TextEncoder → base64
+function strToB64(str){
+    const encoder = new TextEncoder();
+    const data = encoder.encode(str);
+    let bin = '';
+    for(let i=0;i<data.length;i++) bin += String.fromCharCode(data[i]);
+    return btoa(bin);
+}
+
 function genShellCmd(){
     const segList = slices.filter(x=>x.type === "segment");
     const selectedIdx = [];
@@ -181,22 +194,23 @@ function genShellCmd(){
         }
     }
     const m3u8Body = outLines.join("\n");
-    // base64编码
-    const b64 = btoa(unescape(encodeURIComponent(m3u8Body)));
+    const b64 = strToB64(m3u8Body);
+
+    // 调试预览：直接显示将要送入管道的原始文本
+    debugPreview.textContent = m3u8Body;
 
     const dir = outDirEl.value.trim();
     const fname = outFileEl.value.trim();
     const fmt = fmtSel.value;
-    const abr = abrSel.value;
+    const b64p = b64ParamEl.value;
 
     let ffmpegArg;
     if(fmt === "mp4"){
         ffmpegArg = `-c copy "${dir}/${fname}.mp4"`;
     }else{
-        ffmpegArg = `-vn -c:a libmp3lame -b:a ${abr} "${dir}/${fname}.mp3"`;
+        ffmpegArg = `-vn -c:a libmp3lame -b:a 192k "${dir}/${fname}.mp3"`;
     }
-    // 单行命令
-    const cmd = `echo '${b64}' | base64 -d | ffmpeg -i - ${ffmpegArg}`;
+    const cmd = `echo '${b64}' | base64 ${b64p} | ffmpeg -i - ${ffmpegArg}`;
     cmdOutEl.innerText = cmd;
 }
 
@@ -224,7 +238,7 @@ function exportM3u8(){
 
 function copyCmd(){
     const t = cmdOutEl.innerText;
-    navigator.clipboard.writeText(t).then(()=>alert("✅ 已复制，整条一行粘贴到a-Shell直接回车执行"));
+    navigator.clipboard.writeText(t).then(()=>alert("✅ 已复制，整条一行粘贴到a-Shell回车执行"));
 }
 
 async function sendSave(){
@@ -247,6 +261,7 @@ function clearAll(){
     sliceListEl.innerHTML = "";
     sliceStatEl.textContent = "";
     cmdOutEl.innerText = "";
+    debugPreview.textContent = "";
     previewVid.src = "";
 }
 window.parseM3U8 = parseM3U8;
