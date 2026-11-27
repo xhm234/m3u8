@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>M3U8编辑器｜直转MP3（方案A直连 + 方案B代理）</title>
+<title>M3U8编辑器｜编辑后直接转MP3（方案A直连 + 方案B代理，支持DISCONTINUITY）</title>
 <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/ffmpeg.min.js"></script>
 <style>
 *{box-sizing:border-box;font-family:system-ui,-apple-system,sans-serif}
@@ -19,11 +19,11 @@ textarea{width:100%;min-height:160px}
 </style>
 </head>
 <body>
-<h2>M3U8编辑器｜编辑后直接转MP3（不生成MP4）</h2>
+<h2>M3U8编辑器｜编辑后直接转MP3（支持DISCONTINUITY）</h2>
 <div class="info">提示：方案A=直连（CORS容易拦截）｜方案B=代理中转（需要你自己的CORS代理地址）</div>
 <div class="area">
 <h4>① 粘贴M3U8文本</h4>
-<textarea id="m3u8Input" placeholder="粘贴抓包得到的完整m3u8内容"></textarea>
+<textarea id="m3u8Input" placeholder="粘贴完整m3u8内容"></textarea>
 <div class="row">
 <button onclick="parseM3u8()">解析 & 提取分片</button>
 <button onclick="clearAll()">清空</button>
@@ -40,7 +40,7 @@ textarea{width:100%;min-height:160px}
 
 <div class="area">
 <h4>③ 方案B：代理中转下载分片 + 合并转MP3</h4>
-<div class="info">代理格式示例：https://xxx.deno.dev（末尾不要斜杠），拼接规则：代理地址/分片URL</div>
+<div class="info">代理格式示例：https://xxx.deno.dev 或者 https://xxx.deno.dev/?url= ，自动识别拼接方式</div>
 <div class="row">
 <input id="proxyUrl" placeholder="填入你的CORS代理地址" style="flex:1">
 </div>
@@ -73,7 +73,7 @@ function parseM3u8(){
         if(line.startsWith('http')) chunkUrls.push(line);
     }
     document.getElementById('listOut').value = chunkUrls.join('\n');
-    document.getElementById('parseInfo').innerText = `解析完成，分片数量：${chunkUrls.length}`;
+    document.getElementById('parseInfo').innerText = `✅ 解析完成，分片数量：${chunkUrls.length}`;
     log(`解析分片成功，共 ${chunkUrls.length} 条`);
 }
 
@@ -123,24 +123,33 @@ async function runConvert(proxyBase){
     const urls = listText.split('\n').filter(s=>s.trim());
     await loadFFmpeg();
     log('开始下载分片...');
-    const parts = [];
+    const inputs = [];
     for(let i=0;i<urls.length;i++){
         let u = urls[i].trim();
         let fetchUrl = u;
         if(proxyBase){
-            fetchUrl = proxyBase + '/' + encodeURIComponent(u);
+            if(proxyBase.includes('?url=')){
+                fetchUrl = proxyBase + encodeURIComponent(u);
+            }else{
+                fetchUrl = proxyBase + '/' + encodeURIComponent(u);
+            }
         }
         log(`正在下载分片 ${i+1}/${urls.length}`);
         const buf = await downloadBlob(fetchUrl);
         const fname = `part${i}.ts`;
         await ffmpeg.writeFile(fname, buf);
-        parts.push(fname);
+        inputs.push(fname);
     }
-    log('分片全部下载完成，开始合并并提取音频转MP3');
-    let concatTxt = '';
-    for(let p of parts) concatTxt += `file '${p}'\n`;
-    await ffmpeg.writeFile('concat.txt', concatTxt);
-    await ffmpeg.exec(['-f','concat','-safe','0','-i','concat.txt','-vn','-c:a','libmp3lame','-b:a','192k','output.mp3']);
+    log('分片全部下载完成，开始合并并提取音频转MP3（使用filter concat，支持DISCONTINUITY）');
+    const args = [];
+    let filter = '';
+    for(let i=0;i<inputs.length;i++){
+        args.push('-i', inputs[i]);
+        filter += `[${i}:0]`;
+    }
+    filter += `concat=n=${inputs.length}:v=1:a=1[outa]`;
+    args.push('-filter_complex', filter, '-map', '[outa]', '-vn', '-c:a', 'libmp3lame', '-b:a', '192k', '-y', 'output.mp3');
+    await ffmpeg.exec(args);
     const mp3Data = await ffmpeg.readFile('output.mp3');
     const blob = new Blob([mp3Data],{type:'audio/mpeg'});
     const a = document.createElement('a');
