@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>M3U8 编辑器 & a-Shell 命令生成器（MP3/MP4）</title>
+<title>M3U8 编辑器 & a-Shell 命令生成器（管道版，无本地m3u8文件）</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
 body{background:#12121a;color:#eee;padding:12px;line-height:1.5}
@@ -61,7 +61,7 @@ pre{background:#0b0b16;padding:10px;border-radius:6px;overflow-x:auto;font-size:
 </select>
 </div>
 </div>
-<div class="tip">printf方式写入清单，a-Shell稳定，不会损坏m3u8</div>
+<div class="tip">管道直送ffmpeg，不生成本地m3u8文件，规避Invalid data报错</div>
 </div>
 
 <div class="box">
@@ -71,15 +71,15 @@ pre{background:#0b0b16;padding:10px;border-radius:6px;overflow-x:auto;font-size:
 <button onclick="parseM3U8()">解析分片</button>
 <button class="secondary" onclick="clearAll()">清除全部</button>
 </div>
-<div class="tip">清单文件名：<input id="m3u8FileName" value="edited.m3u8" style="width:160px;display:inline-block;margin:0 4px 0 0"></div>
+<div class="tip">清单预览：只勾选需要的分片</div>
 </div>
 
 <div class="box">
 <h3>分片列表（勾选删减分片）<span class="tip" id="sliceStat"></span></h3>
 <div id="sliceList"></div>
 <div class="row" style="margin-top:8px">
-<button onclick="exportM3u8()">导出m3u8文件</button>
-<button class="secondary" onclick="genShellCmd()">生成 a-Shell 命令</button>
+<button onclick="exportM3u8()">导出m3u8文件（备用）</button>
+<button class="secondary" onclick="genShellCmd()">生成 a-Shell 管道命令</button>
 </div>
 </div>
 
@@ -105,7 +105,6 @@ const rawEl = document.getElementById('m3u8Raw');
 const sliceListEl = document.getElementById('sliceList');
 const sliceStatEl = document.getElementById('sliceStat');
 const cmdOutEl = document.getElementById('cmdOut');
-const m3u8FileNameEl = document.getElementById('m3u8FileName');
 const previewVid = document.getElementById('previewVideo');
 const outDirEl = document.getElementById('outDir');
 const outFileEl = document.getElementById('outName');
@@ -122,9 +121,7 @@ function parseM3U8(){
         const t = line.trim();
         if(!t) continue;
         if(t.startsWith("#")){
-            if(t.startsWith("#EXTINF")){
-                currentExtinf = t;
-            }
+            if(t.startsWith("#EXTINF")) currentExtinf = t;
             slices.push({type:"tag", text:t});
         }else{
             slices.push({type:"segment", text:t, extinf:currentExtinf, url:t});
@@ -167,13 +164,7 @@ function previewSlice(i){
     previewVid.play();
 }
 
-function escapeSingleQuote(str){
-    // 单引号里面 ' 要转成 '\''
-    return str.replace(/'/g,"'\\''");
-}
-
 function genShellCmd(){
-    const m3u8Name = m3u8FileNameEl.value.trim()||"edited.m3u8";
     const segList = slices.filter(x=>x.type === "segment");
     const selectedIdx = [];
     document.querySelectorAll('.sliceItem input:checked').forEach(cb=>{
@@ -181,34 +172,32 @@ function genShellCmd(){
     });
     const selectedSeg = selectedIdx.map(i=>segList[i]);
 
-    // 重组清单行，保留tag + 选中分片
+    // 重组输出清单（保留tag，只保留勾选分片）
     const outLines = [];
     for(const s of slices){
         if(s.type === "tag"){
             outLines.push(s.text);
         }else{
-            const hit = selectedSeg.find(x=>x === s);
-            if(hit) outLines.push(s.text);
+            if(selectedSeg.includes(s)) outLines.push(s.text);
         }
     }
-    // 拼装 printf 参数：每一行用单引号包裹
-    const printfArgs = outLines.map(line => `'${escapeSingleQuote(line)}'`).join(" ");
+    const m3u8Body = outLines.join("\n");
 
     const dir = outDirEl.value.trim();
     const fname = outFileEl.value.trim();
     const fmt = fmtSel.value;
     const abr = abrSel.value;
-    let ffmpegCmd;
+
+    let ffmpegArg;
     if(fmt === "mp4"){
-        ffmpegCmd = `ffmpeg -i ${m3u8Name} -c copy "${dir}/${fname}.mp4"`;
+        ffmpegArg = `-c copy "${dir}/${fname}.mp4"`;
     }else{
-        ffmpegCmd = `ffmpeg -i ${m3u8Name} -vn -c:a libmp3lame -b:a ${abr} "${dir}/${fname}.mp3"`;
+        ffmpegArg = `-vn -c:a libmp3lame -b:a ${abr} "${dir}/${fname}.mp3"`;
     }
-    const cmd = [
-        `rm -f ${m3u8Name}`,
-        `printf '%s\\n' ${printfArgs} > ${m3u8Name}`,
-        ffmpegCmd
-    ].join("\n");
+
+    const cmd = `cat <<'EOF' | ffmpeg -i - ${ffmpegArg}
+${m3u8Body}
+EOF`;
     cmdOutEl.innerText = cmd;
 }
 
@@ -223,16 +212,14 @@ function exportM3u8(){
     for(const s of slices){
         if(s.type === "tag") outLines.push(s.text);
         else{
-            const hit = selectedSeg.find(x=>x === s);
-            if(hit) outLines.push(s.text);
+            if(selectedSeg.includes(s)) outLines.push(s.text);
         }
     }
     const text = outLines.join("\n");
-    const outName = m3u8FileNameEl.value.trim()||"edited.m3u8";
     const blob = new Blob([text],{type:"application/x-mpegURL"});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = outName;
+    a.download = "edited.m3u8";
     a.click();
 }
 
