@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>M3U8 编辑器 & a-Shell 命令生成器（管道版，无本地m3u8文件）</title>
+<title>M3U8 编辑器 a-Shell base64单行版</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
 body{background:#12121a;color:#eee;padding:12px;line-height:1.5}
@@ -61,7 +61,7 @@ pre{background:#0b0b16;padding:10px;border-radius:6px;overflow-x:auto;font-size:
 </select>
 </div>
 </div>
-<div class="tip">管道直送ffmpeg，不生成本地m3u8文件，规避Invalid data报错</div>
+<div class="tip">Base64单行命令，a-Shell粘贴不会逐行执行，无EOF问题</div>
 </div>
 
 <div class="box">
@@ -79,7 +79,7 @@ pre{background:#0b0b16;padding:10px;border-radius:6px;overflow-x:auto;font-size:
 <div id="sliceList"></div>
 <div class="row" style="margin-top:8px">
 <button onclick="exportM3u8()">导出m3u8文件（备用）</button>
-<button class="secondary" onclick="genShellCmd()">生成 a-Shell 管道命令</button>
+<button class="secondary" onclick="genShellCmd()">生成 a-Shell 单行命令</button>
 </div>
 </div>
 
@@ -90,7 +90,7 @@ pre{background:#0b0b16;padding:10px;border-radius:6px;overflow-x:auto;font-size:
 </div>
 
 <div class="box">
-<h3>生成命令</h3>
+<h3>生成命令（整条只有一行，直接复制粘贴）</h3>
 <pre id="cmdOut"></pre>
 <div class="row">
 <button onclick="copyCmd()">复制命令</button>
@@ -172,7 +172,6 @@ function genShellCmd(){
     });
     const selectedSeg = selectedIdx.map(i=>segList[i]);
 
-    // 重组输出清单（保留tag，只保留勾选分片）
     const outLines = [];
     for(const s of slices){
         if(s.type === "tag"){
@@ -182,6 +181,8 @@ function genShellCmd(){
         }
     }
     const m3u8Body = outLines.join("\n");
+    // base64编码
+    const b64 = btoa(unescape(encodeURIComponent(m3u8Body)));
 
     const dir = outDirEl.value.trim();
     const fname = outFileEl.value.trim();
@@ -194,10 +195,8 @@ function genShellCmd(){
     }else{
         ffmpegArg = `-vn -c:a libmp3lame -b:a ${abr} "${dir}/${fname}.mp3"`;
     }
-
-    const cmd = `cat <<'EOF' | ffmpeg -i - ${ffmpegArg}
-${m3u8Body}
-EOF`;
+    // 单行命令
+    const cmd = `echo '${b64}' | base64 -d | ffmpeg -i - ${ffmpegArg}`;
     cmdOutEl.innerText = cmd;
 }
 
@@ -225,7 +224,7 @@ function exportM3u8(){
 
 function copyCmd(){
     const t = cmdOutEl.innerText;
-    navigator.clipboard.writeText(t).then(()=>alert("✅ 已复制，直接粘贴 a-Shell"));
+    navigator.clipboard.writeText(t).then(()=>alert("✅ 已复制，整条一行粘贴到a-Shell直接回车执行"));
 }
 
 async function sendSave(){
