@@ -61,7 +61,7 @@ pre{background:#0b0b16;padding:10px;border-radius:6px;overflow-x:auto;font-size:
 </select>
 </div>
 </div>
-<div class="tip">生成echo写入命令，适配a-Shell，粘贴直接运行，不会空文件</div>
+<div class="tip">printf方式写入清单，a-Shell稳定，不会损坏m3u8</div>
 </div>
 
 <div class="box">
@@ -117,21 +117,18 @@ function parseM3U8(){
     if(!raw) return alert("请粘贴 m3u8 内容");
     slices = [];
     const lines = raw.split(/\r?\n/);
-    let cur = null;
+    let currentExtinf = null;
     for(const line of lines){
         const t = line.trim();
-        if(!t)continue;
+        if(!t) continue;
         if(t.startsWith("#")){
-            if(t.startsWith("#EXTINF")) cur = {extinf:t,url:null};
-            slices.push({text:t,type:"tag"});
-            continue;
-        }
-        if(cur){
-            cur.url = t;
-            slices.push({text:t,type:"url",url:t,extinf:cur.extinf});
-            cur = null;
+            if(t.startsWith("#EXTINF")){
+                currentExtinf = t;
+            }
+            slices.push({type:"tag", text:t});
         }else{
-            slices.push({text:t,type:"url",url:t,extinf:null});
+            slices.push({type:"segment", text:t, extinf:currentExtinf, url:t});
+            currentExtinf = null;
         }
     }
     renderSliceList();
@@ -139,27 +136,29 @@ function parseM3U8(){
 
 function renderSliceList(){
     sliceListEl.innerHTML = "";
-    slices.forEach((item,i)=>{
-        if(item.type === "tag") return;
+    const segList = slices.filter(x=>x.type === "segment");
+    segList.forEach((item,idx)=>{
         const div = document.createElement('div');
         div.className = "sliceItem";
         div.innerHTML = `
-            <input type="checkbox" data-idx="${i}" checked>
-            <span>[${i+1}] ${item.url}</span>
-            <button class="secondary" style="width:70px;padding:4px;font-size:12px" onclick="previewSlice(${i})">预览</button>
+            <input type="checkbox" data-idx="${idx}" checked>
+            <span>[${idx+1}] ${item.url}</span>
+            <button class="secondary" style="width:70px;padding:4px;font-size:12px" onclick="previewSlice(${segList.indexOf(item)})">预览</button>
         `;
         sliceListEl.appendChild(div);
     })
     updateStat();
 }
+
 function updateStat(){
-    const total = slices.filter(x=>x.type==="url").length;
+    const segList = slices.filter(x=>x.type === "segment");
     const checked = document.querySelectorAll('.sliceItem input:checked').length;
-    sliceStatEl.textContent = `（总计：${total} 条，已选中：${checked} 条）`;
+    sliceStatEl.textContent = `（总计：${segList.length} 条，已选中：${checked} 条）`;
 }
 
 function previewSlice(i){
-    const item = slices[i];
+    const segList = slices.filter(x=>x.type === "segment");
+    const item = segList[i];
     const base = baseUrlEl.value.trim();
     let src;
     if(/^https?:\/\//.test(item.url)) src = item.url;
@@ -168,26 +167,33 @@ function previewSlice(i){
     previewVid.play();
 }
 
-function escapeShell(str){
-    return str.replace(/"/g,'\\"');
+function escapeSingleQuote(str){
+    // 单引号里面 ' 要转成 '\''
+    return str.replace(/'/g,"'\\''");
 }
 
 function genShellCmd(){
     const m3u8Name = m3u8FileNameEl.value.trim()||"edited.m3u8";
-    const base = baseUrlEl.value.trim();
+    const segList = slices.filter(x=>x.type === "segment");
     const selectedIdx = [];
     document.querySelectorAll('.sliceItem input:checked').forEach(cb=>{
         selectedIdx.push(Number(cb.dataset.idx));
     });
-    const selectedItems = selectedIdx.map(i=>slices[i]);
+    const selectedSeg = selectedIdx.map(i=>segList[i]);
 
-    const lines = [];
-    lines.push(`rm -f ${m3u8Name}`);
-    lines.push(`echo "#EXTM3U" >> ${m3u8Name}`);
-    for(const s of selectedItems){
-        const escaped = escapeShell(s.text);
-        lines.push(`echo "${escaped}" >> ${m3u8Name}`);
+    // 重组清单行，保留tag + 选中分片
+    const outLines = [];
+    for(const s of slices){
+        if(s.type === "tag"){
+            outLines.push(s.text);
+        }else{
+            const hit = selectedSeg.find(x=>x === s);
+            if(hit) outLines.push(s.text);
+        }
     }
+    // 拼装 printf 参数：每一行用单引号包裹
+    const printfArgs = outLines.map(line => `'${escapeSingleQuote(line)}'`).join(" ");
+
     const dir = outDirEl.value.trim();
     const fname = outFileEl.value.trim();
     const fmt = fmtSel.value;
@@ -198,17 +204,30 @@ function genShellCmd(){
     }else{
         ffmpegCmd = `ffmpeg -i ${m3u8Name} -vn -c:a libmp3lame -b:a ${abr} "${dir}/${fname}.mp3"`;
     }
-    lines.push(ffmpegCmd);
-    cmdOutEl.innerText = lines.join("\n");
+    const cmd = [
+        `rm -f ${m3u8Name}`,
+        `printf '%s\\n' ${printfArgs} > ${m3u8Name}`,
+        ffmpegCmd
+    ].join("\n");
+    cmdOutEl.innerText = cmd;
 }
 
 function exportM3u8(){
+    const segList = slices.filter(x=>x.type === "segment");
     const selectedIdx = [];
     document.querySelectorAll('.sliceItem input:checked').forEach(cb=>{
         selectedIdx.push(Number(cb.dataset.idx));
     });
-    const selectedItems = selectedIdx.map(i=>slices[i]);
-    const text = selectedItems.map(x=>x.text).join("\n");
+    const selectedSeg = selectedIdx.map(i=>segList[i]);
+    const outLines = [];
+    for(const s of slices){
+        if(s.type === "tag") outLines.push(s.text);
+        else{
+            const hit = selectedSeg.find(x=>x === s);
+            if(hit) outLines.push(s.text);
+        }
+    }
+    const text = outLines.join("\n");
     const outName = m3u8FileNameEl.value.trim()||"edited.m3u8";
     const blob = new Blob([text],{type:"application/x-mpegURL"});
     const a = document.createElement('a');
