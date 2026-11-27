@@ -3,245 +3,234 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>M3U8 编辑器 & a-Shell 命令生成器（MP3/MP4）</title>
+<title>M3U8 编辑器 · a-Shell 命令生成器（MP3/MP4）</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
 body{background:#12121a;color:#eee;padding:12px;line-height:1.5}
 .box{background:#1e1e2f;border-radius:10px;padding:14px;margin-bottom:12px}
-h3{margin-bottom:10px;color:#7cf}
-input,textarea,select,button{width:100%;padding:10px;border-radius:6px;border:0;font-size:15px;margin:6px 0}
+h3{margin-bottom:10px;color:#7cf;font-size:15px}
+label{font-size:12px;color:#aaa;display:block;margin:6px 0 2px}
+input,textarea,select,button{width:100%;padding:10px;border-radius:6px;border:0;font-size:15px;margin:4px 0}
 input,textarea,select{background:#2b2b40;color:#fff}
 button{background:#2584ff;color:#fff;font-weight:bold;cursor:pointer}
 button.secondary{background:#444660}
 button.danger{background:#c43}
 .row{display:flex;gap:8px}
 .row>*{flex:1}
-pre{background:#0b0b16;padding:10px;border-radius:6px;overflow-x:auto;font-size:13px;color:#9cf;white-space:pre-wrap;word-break:break-all}
-.tip{color:#aaa;font-size:13px;margin:4px 0}
+pre{background:#0b0b16;padding:10px;border-radius:6px;overflow-x:auto;font-size:12px;color:#9cf;white-space:pre-wrap;word-break:break-all}
+.tip{color:#888;font-size:12px;margin:6px 0}
 #previewVideo{max-width:100%;border-radius:8px;background:#000}
-.sliceItem{display:flex;align-items:center;gap:6px;padding:8px;background:#2b2b40;border-radius:6px;margin:4px 0}
-.sliceItem>input{flex:0 0 40px}
-.sliceItem>span{flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sliceItem{display:flex;align-items:center;gap:8px;padding:10px;background:#2b2b40;border-radius:6px;margin:6px 0}
+.sliceItem>input{flex:0 0 18px;width:18px;height:18px}
+.sliceItem>.meta{flex:1;min-width:0}
+.sliceItem .nm{font-size:13px;font-weight:500}
+.sliceItem .url{font-size:11px;color:#9aa0b4;word-break:break-all;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sliceItem button{width:64px;padding:6px;font-size:12px}
+.count{font-size:13px;color:#7cf;margin:4px 0}
 </style>
 </head>
 <body>
+
 <div class="box">
-<h3>全局 BaseURL（必填）</h3>
-<input id="baseUrl" placeholder="https://xxx.com/stream/">
-<div class="tip">同站点多段合并只填一次，自动拼接分片相对地址</div>
+  <h3>① 全局 BaseURL（分片是相对路径时填，完整 http 链接可留空）</h3>
+  <input id="baseUrl" placeholder="例：https://xxx.com/stream/  完整分片链接可留空">
 </div>
 
 <div class="box">
-<h3>输出设置（a-Shell）</h3>
-<div class="row">
-<div>
-<label class="tip">输出目录</label>
-<input id="outDir" value="~/Documents" placeholder="~/Documents">
-</div>
-<div>
-<label class="tip">输出文件名（不带后缀）</label>
-<input id="outName" value="audio_out" placeholder="audio_out">
-</div>
-</div>
-<div class="row">
-<div>
-<label class="tip">输出格式</label>
-<select id="fmtSel">
-<option value="mp4">MP4（视频，copy）</option>
-<option value="mp3">MP3（音频提取）</option>
-</select>
-</div>
-<div>
-<label class="tip">MP3码率</label>
-<select id="abrSel">
-<option value="128k">128k</option>
-<option value="192k" selected>192k</option>
-<option value="256k">256k</option>
-<option value="320k">320k</option>
-</select>
-</div>
-</div>
-<div class="tip">生成命令自动拼接完整路径，复制直接粘贴 a-Shell</div>
+  <h3>② 输出设置（a-Shell）</h3>
+  <div class="row">
+    <div><label>输出目录</label><input id="outDir" value="~/Documents"></div>
+    <div><label>输出文件名（不带后缀）</label><input id="outName" value="audio_out"></div>
+  </div>
+  <div class="row">
+    <div><label>输出格式</label>
+      <select id="fmtSel">
+        <option value="mp4">MP4（视频流直接 copy）</option>
+        <option value="mp3" selected>MP3（提取音频）</option>
+      </select>
+    </div>
+    <div><label>MP3 码率</label>
+      <select id="abrSel">
+        <option value="128k">128k</option>
+        <option value="192k" selected>192k</option>
+        <option value="256k">256k</option>
+        <option value="320k">320k</option>
+      </select>
+    </div>
+  </div>
+  <div class="tip">命令会自动写好完整目录与文件名，复制到 a-Shell 直接运行，无需手动改路径。</div>
 </div>
 
 <div class="box">
-<h3>导入 M3U8</h3>
-<textarea id="m3u8Raw" rows="6" placeholder="粘贴 m3u8 文本内容"></textarea>
-<div class="row">
-<button onclick="parseM3U8()">解析分片</button>
-<button class="secondary" onclick="clearAll()">清除全部</button>
-</div>
-<div class="tip">自定义中间 m3u8 文件名：<input id="outM3u8Name" value="edited.m3u8" style="width:160px;display:inline-block;margin:0 4px 0 0"></div>
-</div>
-
-<div class="box">
-<h3>分片列表（勾选取消、删减分片）</h3>
-<div id="sliceList"></div>
-<div class="row" style="margin-top:8px">
-<button onclick="exportM3u8()">导出编辑后 m3u8</button>
-<button class="secondary" onclick="genShellCmd()">生成 a-Shell 命令</button>
-</div>
+  <h3>③ 导入 M3U8 文本</h3>
+  <textarea id="m3u8Raw" rows="7" placeholder="粘贴完整 #EXTM3U ... #EXT-X-ENDLIST 内容"></textarea>
+  <div class="row">
+    <button onclick="parseM3U8()">🔍 解析分片</button>
+    <button class="secondary" onclick="clearAll()">清除全部</button>
+  </div>
+  <div class="tip">中间清单文件名：<input id="outM3u8Name" value="edited.m3u8" style="width:180px;display:inline-block"></div>
 </div>
 
 <div class="box">
-<h3>预览</h3>
-<video id="previewVideo" controls></video>
-<div class="tip">Safari 点击播放自动全屏</div>
+  <h3>④ 分片列表（取消勾选即剔除）</h3>
+  <div class="count" id="countInfo">尚未解析</div>
+  <div id="sliceList"></div>
 </div>
 
 <div class="box">
-<h3>生成命令</h3>
-<pre id="cmdOut"></pre>
-<div class="row">
-<button onclick="copyCmd()">复制命令</button>
-<button class="secondary" onclick="sendSave()">提交到 127.0.0.1:8001/save</button>
+  <h3>⑤ 预览</h3>
+  <video id="previewVideo" controls playsinline></video>
 </div>
+
+<div class="box">
+  <h3>⑥ 生成 a-Shell 命令</h3>
+  <div class="row">
+    <button onclick="genShellCmd()">⚙️ 生成命令</button>
+    <button class="secondary" onclick="copyCmd()">📋 复制命令</button>
+  </div>
+  <pre id="cmdOut">（点击「生成命令」后显示）</pre>
 </div>
 
 <script>
 let slices = [];
-const baseUrlEl = document.getElementById('baseUrl');
-const rawEl = document.getElementById('m3u8Raw');
-const sliceListEl = document.getElementById('sliceList');
-const cmdOutEl = document.getElementById('cmdOut');
-const outNameEl = document.getElementById('outM3u8Name');
-const previewVid = document.getElementById('previewVideo');
-const outDirEl = document.getElementById('outDir');
-const outFileEl = document.getElementById('outName');
-const fmtSel = document.getElementById('fmtSel');
-const abrSel = document.getElementById('abrSel');
 
+const $ = id => document.getElementById(id);
+const baseUrlEl=$('baseUrl'), rawEl=$('m3u8Raw'), sliceListEl=$('sliceList'),
+      cmdOutEl=$('cmdOut'), countInfo=$('countInfo'), previewVid=$('previewVideo'),
+      outDirEl=$('outDir'), outFileEl=$('outName'), fmtSel=$('fmtSel'),
+      abrSel=$('abrSel'), outNameEl=$('outM3u8Name');
+
+// 解析：兼容 DISCONTINUITY、空行、超长 URL、相对路径
 function parseM3U8(){
-    const raw = rawEl.value.trim();
-    if(!raw) return alert("请粘贴 m3u8 内容");
-    slices = [];
-    const lines = raw.split(/\r?\n/);
-    let cur = null;
-    for(const line of lines){
-        const t = line.trim();
-        if(!t)continue;
-        if(t.startsWith("#")){
-            if(t.startsWith("#EXTINF")) cur = {extinf:t,url:null};
-            continue;
-        }
-        if(cur){
-            cur.url = t;
-            slices.push(cur);
-            cur = null;
-        }else{
-            slices.push({extinf:null,url:t});
-        }
+  const raw = rawEl.value.trim();
+  if(!raw){ alert('请粘贴 m3u8 内容'); return; }
+  slices = [];
+  const lines = raw.split(/\r?\n/);
+  let curInf = 0, curExt = '';
+  for(const line of lines){
+    const t = line.trim();
+    if(!t) continue;
+    if(t.startsWith('#EXTINF:')){
+      curExt = t;
+      const m = t.match(/#EXTINF:([\d.]+)/);
+      curInf = m ? parseFloat(m[1]) : 0;
+      continue;
     }
-    renderSliceList();
+    if(t.startsWith('#')) continue;
+    slices.push({ duration: curInf, extinf: curExt || `#EXTINF:${curInf},`, url: t, selected: true });
+    curInf = 0; curExt = '';
+  }
+  if(slices.length === 0){ alert('未解析到分片 URL'); return; }
+  renderSliceList();
 }
 
 function renderSliceList(){
-    sliceListEl.innerHTML = "";
-    slices.forEach((s,i)=>{
-        const div = document.createElement('div');
-        div.className = "sliceItem";
-        div.innerHTML = `
-            <input type="checkbox" data-idx="${i}" checked>
-            <span title="${s.url}">${s.url}</span>
-            <button class="secondary" style="width:70px;padding:4px;font-size:12px" onclick="previewSlice(${i})">预览</button>
-        `;
-        sliceListEl.appendChild(div);
-    })
+  sliceListEl.innerHTML = '';
+  slices.forEach((s,i)=>{
+    const div = document.createElement('div');
+    div.className = 'sliceItem';
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = s.selected;
+    cb.onchange = () => { s.selected = cb.checked; refreshCount(); };
+
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    const nm = document.createElement('div');
+    nm.className = 'nm';
+    nm.textContent = `#${i+1} · ${s.duration}s`;
+    const u = document.createElement('div');
+    u.className = 'url';
+    u.title = s.url;
+    u.textContent = s.url.length > 70 ? s.url.slice(0,70)+'…' : s.url;
+    meta.appendChild(nm); meta.appendChild(u);
+
+    const pv = document.createElement('button');
+    pv.className = 'secondary';
+    pv.textContent = '预览';
+    pv.onclick = () => previewSlice(i);
+
+    div.appendChild(cb); div.appendChild(meta); div.appendChild(pv);
+    sliceListEl.appendChild(div);
+  });
+  refreshCount();
+}
+
+function refreshCount(){
+  const n = slices.filter(s=>s.selected).length;
+  countInfo.textContent = `共 ${slices.length} 段，选中 ${n} 段`;
+}
+
+function resolveUrl(raw){
+  const base = baseUrlEl.value.trim();
+  if(/^https?:\/\//.test(raw)) return raw;
+  if(!base) return raw;
+  try { return new URL(raw, base).href; } catch(e){ return raw; }
 }
 
 function previewSlice(i){
-    const s = slices[i];
-    const base = baseUrlEl.value.trim();
-    let src;
-    if(/^https?:\/\//.test(s.url)) src = s.url;
-    else src = new URL(s.url, base).href;
-    previewVid.src = src;
-    previewVid.play();
+  const s = slices[i];
+  previewVid.src = resolveUrl(s.url);
+  previewVid.play();
 }
 
-function exportM3u8(){
-    const keep = [];
-    document.querySelectorAll('.sliceItem input:checked').forEach(cb=>{
-        const idx = Number(cb.dataset.idx);
-        slices.splice(idx,1);
-    })
-    for(const s of slices){
-        if(s.extinf) keep.push(s.extinf);
-        keep.push(s.url);
-    }
-    const outName = outNameEl.value.trim()||"edited.m3u8";
-    const blob = new Blob([keep.join('\n')],{type:"application/x-mpegURL"});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = outName;
-    a.click();
+// 收集勾选分片（清单里用完整 URL，避免 ffmpeg 找不到相对路径）
+function collectSelected(){
+  return slices.filter(s=>s.selected).map(s=>({
+    extinf: s.extinf,
+    url: resolveUrl(s.url)
+  }));
 }
 
 function genShellCmd(){
-    const outName = outNameEl.value.trim()||"edited.m3u8";
-    const base = baseUrlEl.value.trim();
-    const keep = [];
-    // 只保留勾选的分片
-    const selectedIdx = [];
-    document.querySelectorAll('.sliceItem input:checked').forEach(cb=>{
-        selectedIdx.push(Number(cb.dataset.idx));
-    });
-    const selectedSlices = selectedIdx.map(i=>slices[i]);
+  const sel = collectSelected();
+  if(sel.length === 0){ alert('请至少勾选一个分片'); return; }
+  const m3u8Name = (outNameEl.value.trim() || 'edited.m3u8').replace(/\s+/g,'_');
+  const dir = outDirEl.value.trim().replace(/\/+$/,'');
+  const fname = outFileEl.value.trim().replace(/\s+/g,'_') || 'audio_out';
+  const fmt = fmtSel.value;
+  const abr = abrSel.value;
 
-    for(const s of selectedSlices){
-        if(s.extinf) keep.push(s.extinf);
-        keep.push(s.url);
-    }
-    const m3u8Text = keep.join('\n');
-    const dir = outDirEl.value.trim();
-    const fname = outFileEl.value.trim();
-    const fmt = fmtSel.value;
-    const abr = abrSel.value;
-    let ffmpegArg;
-    if(fmt === "mp4"){
-        ffmpegArg = `-c copy "${dir}/${fname}.mp4"`;
-    }else{
-        ffmpegArg = `-c:a libmp3lame -b:a ${abr} "${dir}/${fname}.mp3"`;
-    }
-    const cmd = `cat > ${outName} <<'EOF'
+  const m3u8Lines = ['#EXTM3U', '#EXT-X-TARGETDURATION:10'];
+  sel.forEach(s=>{ m3u8Lines.push(s.extinf); m3u8Lines.push(s.url); });
+  const m3u8Text = m3u8Lines.join('\n');
+
+  // 输出参数
+  let outArg;
+  if(fmt === 'mp4'){
+    outArg = `-c copy "${dir}/${fname}.mp4"`;
+  } else {
+    outArg = `-vn -c:a libmp3lame -b:a ${abr} "${dir}/${fname}.mp3"`;
+  }
+
+  // 1) 写清单  2) ffmpeg 读取清单转码（清单内为完整 URL）
+  const cmd =
+`cat > ${m3u8Name} <<'EOF'
 ${m3u8Text}
 EOF
-ffmpeg -i ${outName} ${ffmpegArg}`;
-    cmdOutEl.innerText = cmd;
+ffmpeg -i ${m3u8Name} ${outArg}`;
+  cmdOutEl.textContent = cmd;
 }
 
 function copyCmd(){
-    const t = cmdOutEl.innerText;
-    navigator.clipboard.writeText(t).then(()=>alert("✅ 已复制，直接粘贴 a-Shell"));
-}
-
-async function sendSave(){
-    const t = cmdOutEl.innerText;
-    try{
-        const r = await fetch("http://127.0.0.1:8001/save",{
-            method:"POST",
-            body:t,
-            headers:{"Content-Type":"text/plain"}
-        });
-        alert(await r.text());
-    }catch(e){
-        alert("提交失败："+e.message);
-    }
+  const t = cmdOutEl.textContent;
+  if(!t || t.startsWith('（点击')){ alert('请先生成命令'); return; }
+  navigator.clipboard.writeText(t).then(()=>alert('✅ 已复制，粘贴到 a-Shell 直接运行'))
+    .catch(()=>{
+      const ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta);
+      ta.select(); document.execCommand('copy'); ta.remove(); alert('✅ 已复制');
+    });
 }
 
 function clearAll(){
-    rawEl.value = "";
-    slices = [];
-    sliceListEl.innerHTML = "";
-    cmdOutEl.innerText = "";
-    previewVid.src = "";
+  rawEl.value=''; slices=[]; sliceListEl.innerHTML=''; cmdOutEl.textContent='（点击「生成命令」后显示）';
+  countInfo.textContent='尚未解析'; previewVid.src='';
 }
-window.parseM3U8 = parseM3U8;
-window.clearAll = clearAll;
-window.genShellCmd = genShellCmd;
-window.copyCmd = copyCmd;
-window.sendSave = sendSave;
-window.previewSlice = previewSlice;
+
+window.parseM3U8=parseM3U8; window.clearAll=clearAll; window.genShellCmd=genShellCmd;
+window.copyCmd=copyCmd; window.previewSlice=previewSlice;
 </script>
 </body>
 </html>
+<!-- （注：内容由AI生成） -->
