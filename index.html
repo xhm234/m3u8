@@ -3,356 +3,245 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>M3U8 解析直转 MP3</title>
-<script src="https://fastly.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js"></script>
-<script src="https://fastly.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.15/dist/umd/ffmpeg.js"></script>
+<title>M3U8 编辑器 & a-Shell 命令生成器（MP3/MP4）</title>
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f2f3f5; color: #1f2329; padding-bottom: 120px; }
-.header { background: linear-gradient(135deg,#3370ff,#2850c8); color:#fff; padding: 18px 16px; }
-.header h1 { font-size: 18px; font-weight: 600; }
-.header p { font-size: 12px; opacity: .85; margin-top: 4px; }
-.container { padding: 12px; }
-.card { background:#fff; border-radius: 12px; padding: 14px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
-.card h2 { font-size: 15px; margin-bottom: 10px; display:flex; align-items:center; gap:6px; }
-textarea { width:100%; min-height: 120px; border:1px solid #dcdfe6; border-radius: 8px; padding: 10px; font-size: 13px; font-family: monospace; resize: vertical; line-height: 1.5; }
-textarea:focus { outline: none; border-color: #3370ff; }
-.btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; border:none; border-radius: 10px; padding: 12px 16px; font-size: 14px; font-weight: 500; cursor: pointer; transition: opacity .15s; }
-.btn:active { opacity: .8; }
-.btn-primary { background:#3370ff; color:#fff; }
-.btn-secondary { background:#f0f2f5; color:#1f2329; }
-.btn-danger { background:#ff4d4f; color:#fff; }
-.btn-success { background:#34c759; color:#fff; }
-.btn:disabled { opacity: .45; cursor: not-allowed; }
-.btn-row { display:flex; gap:8px; flex-wrap: wrap; margin-top: 10px; }
-.btn-row .btn { flex:1; min-width: 110px; }
-.video-wrap { width:100%; background:#000; border-radius: 10px; overflow: hidden; margin-top: 10px; }
-video { width:100%; display:block; max-height: 320px; }
-.meta { font-size: 12px; color:#646a73; margin-top: 8px; line-height: 1.7; }
-.seg-list { margin-top: 10px; display:flex; flex-direction: column; gap: 8px; }
-.seg-item { display:flex; align-items:center; gap:10px; padding: 10px 12px; background:#f7f8fa; border-radius: 10px; }
-.seg-item.off { opacity: .4; }
-.seg-item input[type=checkbox] { width:18px; height:18px; accent-color:#3370ff; flex-shrink:0; }
-.seg-info { flex:1; min-width:0; }
-.seg-name { font-size: 13px; font-weight: 500; }
-.seg-meta { font-size: 11px; color:#646a73; margin-top: 2px; word-break: break-all; }
-.seg-del { background:#ffece8; color:#ff4d4f; border:none; border-radius:8px; padding:6px 10px; font-size:12px; }
-.status { font-size:13px; line-height: 1.6; padding: 10px; border-radius: 8px; margin-top: 10px; background:#f7f8fa; display:none; }
-.status.show { display:block; }
-.status.ok { background:#e8f7ec; color:#1a7f37; }
-.status.err { background:#ffece8; color:#c8272c; }
-.status.load { background:#eaf3ff; color:#2850c8; }
-.tip { font-size: 12px; color:#8f959e; line-height: 1.7; margin-top: 8px; }
-.toolbar { display:flex; gap:6px; flex-wrap: wrap; margin-top: 10px; }
-.toolbar .btn { padding: 8px 12px; font-size: 12px; border-radius: 8px; }
-.mode-tabs { display:flex; gap:6px; margin:10px 0; }
-.mode-tabs .btn { flex:1; font-size:12px; }
-.mode-tabs .active { background:#3370ff; color:#fff; }
-.proxy-box { margin-top: 10px; padding: 10px; background:#f7f8fa; border-radius: 8px; }
-.proxy-box label { font-size: 12px; color:#646a73; display:block; margin-bottom:6px; }
-.proxy-box input { width:100%; border:1px solid #dcdfe6; border-radius:8px; padding:9px; font-size:13px; font-family:monospace; }
-.bar { height:8px; background:#eef0f3; border-radius:6px; overflow:hidden; margin-top:10px; }
-.bar > i { display:block; height:100%; background:#34c759; width:0; transition: width .2s; }
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+body{background:#12121a;color:#eee;padding:12px;line-height:1.5}
+.box{background:#1e1e2f;border-radius:10px;padding:14px;margin-bottom:12px}
+h3{margin-bottom:10px;color:#7cf}
+input,textarea,select,button{width:100%;padding:10px;border-radius:6px;border:0;font-size:15px;margin:6px 0}
+input,textarea,select{background:#2b2b40;color:#fff}
+button{background:#2584ff;color:#fff;font-weight:bold;cursor:pointer}
+button.secondary{background:#444660}
+button.danger{background:#c43}
+.row{display:flex;gap:8px}
+.row>*{flex:1}
+pre{background:#0b0b16;padding:10px;border-radius:6px;overflow-x:auto;font-size:13px;color:#9cf;white-space:pre-wrap;word-break:break-all}
+.tip{color:#aaa;font-size:13px;margin:4px 0}
+#previewVideo{max-width:100%;border-radius:8px;background:#000}
+.sliceItem{display:flex;align-items:center;gap:6px;padding:8px;background:#2b2b40;border-radius:6px;margin:4px 0}
+.sliceItem>input{flex:0 0 40px}
+.sliceItem>span{flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 </style>
 </head>
 <body>
-
-<div class="header">
-  <h1>📼 M3U8 解析直转 MP3</h1>
-  <p>粘贴清单 · 解析分片 · 本地浏览器转码（不生成 MP4）</p>
+<div class="box">
+<h3>全局 BaseURL（必填）</h3>
+<input id="baseUrl" placeholder="https://xxx.com/stream/">
+<div class="tip">同站点多段合并只填一次，自动拼接分片相对地址</div>
 </div>
 
-<div class="container">
+<div class="box">
+<h3>输出设置（a-Shell）</h3>
+<div class="row">
+<div>
+<label class="tip">输出目录</label>
+<input id="outDir" value="~/Documents" placeholder="~/Documents">
+</div>
+<div>
+<label class="tip">输出文件名（不带后缀）</label>
+<input id="outName" value="audio_out" placeholder="audio_out">
+</div>
+</div>
+<div class="row">
+<div>
+<label class="tip">输出格式</label>
+<select id="fmtSel">
+<option value="mp4">MP4（视频，copy）</option>
+<option value="mp3">MP3（音频提取）</option>
+</select>
+</div>
+<div>
+<label class="tip">MP3码率</label>
+<select id="abrSel">
+<option value="128k">128k</option>
+<option value="192k" selected>192k</option>
+<option value="256k">256k</option>
+<option value="320k">320k</option>
+</select>
+</div>
+</div>
+<div class="tip">生成命令自动拼接完整路径，复制直接粘贴 a-Shell</div>
+</div>
 
-  <div class="card">
-    <h2>① 粘贴 M3U8 文本</h2>
-    <textarea id="m3u8Input" placeholder="把完整 #EXTM3U ... #EXT-X-ENDLIST 内容粘贴到这里，或点「选择文件」读取本地 .m3u8"></textarea>
-    <div class="toolbar">
-      <button class="btn btn-secondary" onclick="document.getElementById('fileInput').click()">📂 选择文件</button>
-      <button class="btn btn-primary" onclick="parseM3U8()">🔍 解析分片</button>
-      <button class="btn btn-secondary" onclick="loadDemo()">示例数据</button>
-      <input type="file" id="fileInput" accept=".m3u8,.txt,.hls" style="display:none" onchange="readFile(event)">
-    </div>
-    <div class="status" id="parseStatus"></div>
-  </div>
+<div class="box">
+<h3>导入 M3U8</h3>
+<textarea id="m3u8Raw" rows="6" placeholder="粘贴 m3u8 文本内容"></textarea>
+<div class="row">
+<button onclick="parseM3U8()">解析分片</button>
+<button class="secondary" onclick="clearAll()">清除全部</button>
+</div>
+<div class="tip">自定义中间 m3u8 文件名：<input id="outM3u8Name" value="edited.m3u8" style="width:160px;display:inline-block;margin:0 4px 0 0"></div>
+</div>
 
-  <div class="card" id="previewCard" style="display:none">
-    <h2>② 在线预览</h2>
-    <div class="video-wrap">
-      <video id="player" controls playsinline></video>
-    </div>
-    <div class="meta" id="previewMeta"></div>
-    <div class="tip">预览黑屏/报错多为跨域或链接失效，不影响下方解析与转码。</div>
-  </div>
+<div class="box">
+<h3>分片列表（勾选取消、删减分片）</h3>
+<div id="sliceList"></div>
+<div class="row" style="margin-top:8px">
+<button onclick="exportM3u8()">导出编辑后 m3u8</button>
+<button class="secondary" onclick="genShellCmd()">生成 a-Shell 命令</button>
+</div>
+</div>
 
-  <div class="card" id="segCard" style="display:none">
-    <h2>③ 分片列表（取消勾选即剔除）</h2>
-    <div class="toolbar">
-      <button class="btn btn-secondary" onclick="toggleAll(true)">全选</button>
-      <button class="btn btn-secondary" onclick="toggleAll(false)">全不选</button>
-      <button class="btn btn-danger" onclick="removeUnchecked()">删除未选中</button>
-    </div>
-    <div class="seg-list" id="segList"></div>
-  </div>
+<div class="box">
+<h3>预览</h3>
+<video id="previewVideo" controls></video>
+<div class="tip">Safari 点击播放自动全屏</div>
+</div>
 
-  <div class="card" id="mp3Card" style="display:none">
-    <h2>④ 直转 MP3（本地转码）</h2>
-
-    <div class="mode-tabs">
-      <button class="btn" id="tabA" onclick="setMode('direct')">方案 A · 直连下载</button>
-      <button class="btn" id="tabB" onclick="setMode('proxy')">方案 B · 代理中转</button>
-    </div>
-
-    <div class="proxy-box" id="proxyBox" style="display:none">
-      <label>CORS 代理地址（填你自己的代理，结尾不带斜杠）</label>
-      <input type="text" id="proxyUrl" placeholder="例：https://your-proxy.deno.dev" value="">
-      <div class="tip">代理把分片 URL 拼在后面转发并补 CORS 头；鉴权所需 Cookie/Referer 需代理自行带上。</div>
-    </div>
-
-    <div class="btn-row">
-      <button class="btn btn-primary" id="mp3Btn" onclick="extractMp3()">🎵 开始转 MP3</button>
-    </div>
-
-    <div class="bar"><i id="progBar"></i></div>
-    <div class="status" id="mp3Status"></div>
-
-    <div class="tip">
-      · 方案 A：浏览器直接 fetch 分片，源站允许跨域才成功；爱奇艺等多数 CDN 会拦截。<br>
-      · 方案 B：分片经你填的代理中转，适合直连被拦截的源。<br>
-      · 转码在浏览器本地完成，文件不上传本站；iOS 内存有限，长音频易闪退。<br>
-      · file:// 双击无法加载转码引擎，需用在线 HTTP 链接打开。
-    </div>
-  </div>
-
+<div class="box">
+<h3>生成命令</h3>
+<pre id="cmdOut"></pre>
+<div class="row">
+<button onclick="copyCmd()">复制命令</button>
+<button class="secondary" onclick="sendSave()">提交到 127.0.0.1:8001/save</button>
+</div>
 </div>
 
 <script>
-// ============ 全局状态 ============
-let segments = [];
-let hls = null;
-let ffmpeg = null;
-let mode = 'direct';
+let slices = [];
+const baseUrlEl = document.getElementById('baseUrl');
+const rawEl = document.getElementById('m3u8Raw');
+const sliceListEl = document.getElementById('sliceList');
+const cmdOutEl = document.getElementById('cmdOut');
+const outNameEl = document.getElementById('outM3u8Name');
+const previewVid = document.getElementById('previewVideo');
+const outDirEl = document.getElementById('outDir');
+const outFileEl = document.getElementById('outName');
+const fmtSel = document.getElementById('fmtSel');
+const abrSel = document.getElementById('abrSel');
 
-function readFile(e) {
-  const f = e.target.files[0];
-  if (!f) return;
-  const r = new FileReader();
-  r.onload = () => { document.getElementById('m3u8Input').value = r.result; };
-  r.readAsText(f);
-}
-
-// ============ 解析 m3u8（兼容 DISCONTINUITY / 空行 / 超长 URL） ============
-function parseM3U8() {
-  const text = document.getElementById('m3u8Input').value.trim();
-  const st = document.getElementById('parseStatus');
-  if (!text) { showStatus(st, 'err', '请先粘贴 M3U8 内容'); return; }
-  segments = [];
-  const lines = text.split(/\r?\n/);
-  let curDuration = 0, curExtinf = '';
-  for (let i = 0; i < lines.length; i++) {
-    let line = lines[i].trim();
-    if (!line) continue;
-    if (line.startsWith('#EXTINF:')) {
-      curExtinf = line;
-      const m = line.match(/#EXTINF:([\d.]+)/);
-      curDuration = m ? parseFloat(m[1]) : 0;
-      continue;
+function parseM3U8(){
+    const raw = rawEl.value.trim();
+    if(!raw) return alert("请粘贴 m3u8 内容");
+    slices = [];
+    const lines = raw.split(/\r?\n/);
+    let cur = null;
+    for(const line of lines){
+        const t = line.trim();
+        if(!t)continue;
+        if(t.startsWith("#")){
+            if(t.startsWith("#EXTINF")) cur = {extinf:t,url:null};
+            continue;
+        }
+        if(cur){
+            cur.url = t;
+            slices.push(cur);
+            cur = null;
+        }else{
+            slices.push({extinf:null,url:t});
+        }
     }
-    if (line.startsWith('#')) continue;
-    segments.push({ duration: curDuration, extinf: curExtinf || `#EXTINF:${curDuration},`, url: line, selected: true });
-    curDuration = 0; curExtinf = '';
-  }
-  if (segments.length === 0) { showStatus(st, 'err', '未解析到分片 URL，请检查格式'); return; }
-  renderSegments();
-  showStatus(st, 'ok', `解析成功：共 ${segments.length} 个分片，总时长约 ${totalDuration().toFixed(1)} 秒`);
-  document.getElementById('segCard').style.display = 'block';
-  document.getElementById('mp3Card').style.display = 'block';
-  loadPreview();
+    renderSliceList();
 }
 
-function totalDuration() {
-  return segments.filter(s => s.selected).reduce((a, s) => a + s.duration, 0);
+function renderSliceList(){
+    sliceListEl.innerHTML = "";
+    slices.forEach((s,i)=>{
+        const div = document.createElement('div');
+        div.className = "sliceItem";
+        div.innerHTML = `
+            <input type="checkbox" data-idx="${i}" checked>
+            <span title="${s.url}">${s.url}</span>
+            <button class="secondary" style="width:70px;padding:4px;font-size:12px" onclick="previewSlice(${i})">预览</button>
+        `;
+        sliceListEl.appendChild(div);
+    })
 }
 
-// ============ 渲染分片（用 DOM 写入，避免长 URL 转义问题） ============
-function renderSegments() {
-  const list = document.getElementById('segList');
-  list.innerHTML = '';
-  segments.forEach((seg, idx) => {
-    const div = document.createElement('div');
-    div.className = 'seg-item' + (seg.selected ? '' : ' off');
-
-    const cb = document.createElement('input');
-    cb.type = 'checkbox';
-    cb.checked = seg.selected;
-    cb.onchange = () => toggleSeg(idx, cb.checked);
-
-    const info = document.createElement('div');
-    info.className = 'seg-info';
-    const name = document.createElement('div');
-    name.className = 'seg-name';
-    name.textContent = `#${idx+1} · ${seg.duration}s`;
-    const meta = document.createElement('div');
-    meta.className = 'seg-meta';
-    meta.textContent = seg.url.length > 60 ? seg.url.slice(0, 60) + '…' : seg.url;
-    meta.title = seg.url;
-    info.appendChild(name);
-    info.appendChild(meta);
-
-    const del = document.createElement('button');
-    del.className = 'seg-del';
-    del.textContent = '删除';
-    del.onclick = () => removeSeg(idx);
-
-    div.appendChild(cb);
-    div.appendChild(info);
-    div.appendChild(del);
-    list.appendChild(div);
-  });
-  document.getElementById('previewMeta').textContent = `当前选中 ${segments.filter(s=>s.selected).length} / ${segments.length} 段，约 ${totalDuration().toFixed(1)} 秒`;
+function previewSlice(i){
+    const s = slices[i];
+    const base = baseUrlEl.value.trim();
+    let src;
+    if(/^https?:\/\//.test(s.url)) src = s.url;
+    else src = new URL(s.url, base).href;
+    previewVid.src = src;
+    previewVid.play();
 }
 
-function toggleSeg(idx, checked) { segments[idx].selected = checked; renderSegments(); }
-function toggleAll(v) { segments.forEach(s => s.selected = v); renderSegments(); }
-function removeSeg(idx) { segments.splice(idx, 1); renderSegments(); }
-function removeUnchecked() { segments = segments.filter(s => s.selected); renderSegments(); }
-
-function loadPreview() {
-  const player = document.getElementById('player');
-  const blob = new Blob([buildM3U8Text()], { type: 'application/vnd.apple.mpegurl' });
-  const url = URL.createObjectURL(blob);
-  document.getElementById('previewCard').style.display = 'block';
-  if (hls) { hls.destroy(); hls = null; }
-  if (Hls && Hls.isSupported()) {
-    hls = new Hls();
-    hls.loadSource(url);
-    hls.attachMedia(player);
-    hls.on(Hls.Events.ERROR, () => {
-      showStatus(document.getElementById('parseStatus'), 'err', '预览失败：跨域或链接失效（不影响转码）');
-    });
-  } else if (player.canPlayType('application/vnd.apple.mpegurl')) {
-    player.src = url;
-  }
-}
-
-function buildM3U8Text() {
-  const lines = ['#EXTM3U', '#EXT-X-TARGETDURATION:10'];
-  segments.forEach(s => {
-    if (!s.selected) return;
-    lines.push(s.extinf);
-    lines.push(s.url);
-  });
-  lines.push('#EXT-X-ENDLIST');
-  return lines.join('\n');
-}
-
-function setMode(m) {
-  mode = m;
-  document.getElementById('tabA').classList.toggle('active', m === 'direct');
-  document.getElementById('tabB').classList.toggle('active', m === 'proxy');
-  document.getElementById('proxyBox').style.display = m === 'proxy' ? 'block' : 'none';
-}
-
-function resolveUrl(raw) {
-  if (mode !== 'proxy') return raw;
-  const proxy = document.getElementById('proxyUrl').value.trim().replace(/\/+$/, '');
-  if (!proxy) throw new Error('方案 B 需先填写 CORS 代理地址');
-  if (proxy.includes('?url=')) return proxy + encodeURIComponent(raw);
-  return proxy + '/' + encodeURIComponent(raw);
-}
-
-// ============ 加载 ffmpeg.wasm（经典 worker，blob 承载，兼容 Safari） ============
-async function loadFFmpeg() {
-  if (ffmpeg) return ffmpeg;
-  const cdn = 'https://fastly.jsdelivr.net/npm/@ffmpeg';
-  const workerCode = await (await fetch(`${cdn}/ffmpeg@0.12.10/dist/umd/814.ffmpeg.js`)).text();
-  const workerBlob = URL.createObjectURL(new Blob([workerCode], { type: 'application/javascript' }));
-  const { FFmpeg } = window.FFmpegWASM;
-  ffmpeg = new FFmpeg();
-  await ffmpeg.load({
-    classWorkerURL: workerBlob,
-    coreURL: `${cdn}/core@0.12.6/dist/esm/ffmpeg-core.js`,
-    wasmURL: `${cdn}/core@0.12.6/dist/esm/ffmpeg-core.wasm`
-  });
-  return ffmpeg;
-}
-
-function setProgress(p) {
-  document.getElementById('progBar').style.width = Math.round(p * 100) + '%';
-}
-
-// ============ 提取 MP3 ============
-async function extractMp3() {
-  const st = document.getElementById('mp3Status');
-  const btn = document.getElementById('mp3Btn');
-  const selected = segments.filter(s => s.selected);
-  if (!selected.length) { showStatus(st, 'err', '没有选中分片'); return; }
-  if (location.protocol === 'file:') {
-    showStatus(st, 'err', '⚠️ 本地文件方式无法运行转码引擎：请用在线 HTTP 链接打开本页面。');
-    return;
-  }
-  btn.disabled = true;
-  setProgress(0);
-  showStatus(st, 'load', mode === 'proxy' ? '方案 B：经代理中转下载分片…' : '方案 A：直连下载分片…');
-  try {
-    const ff = await loadFFmpeg();
-    const inputs = [];
-    for (let i = 0; i < selected.length; i++) {
-      showStatus(st, 'load', `下载分片 ${i+1}/${selected.length} …`);
-      setProgress(i / selected.length * 0.7);
-      let url;
-      try { url = resolveUrl(selected[i].url); }
-      catch (e) { throw new Error(e.message); }
-      let resp;
-      try {
-        resp = await fetch(url);
-      } catch (e) {
-        throw new Error(`分片 ${i+1} 被浏览器拦截（跨域/CORS），无法下载`);
-      }
-      if (!resp.ok) throw new Error(`分片 ${i+1} 请求失败 HTTP ${resp.status}（鉴权失效或链接已过期）`);
-      const buf = await resp.arrayBuffer();
-      const fname = `seg${i}.ts`;
-      await ff.writeFile(fname, new Uint8Array(buf));
-      inputs.push(fname);
+function exportM3u8(){
+    const keep = [];
+    document.querySelectorAll('.sliceItem input:checked').forEach(cb=>{
+        const idx = Number(cb.dataset.idx);
+        slices.splice(idx,1);
+    })
+    for(const s of slices){
+        if(s.extinf) keep.push(s.extinf);
+        keep.push(s.url);
     }
-    const concat = inputs.map(f => `file '${f}'`).join('\n');
-    await ff.writeFile('list.txt', concat);
-    setProgress(0.8);
-    showStatus(st, 'load', '正在合并并转码 MP3 …');
-    await ff.exec(['-f', 'concat', '-safe', '0', '-i', 'list.txt', '-vn', '-c:a', 'libmp3lame', '-b:a', '192k', 'audio.mp3']);
-    const data = await ff.readFile('audio.mp3');
-    const blob = new Blob([data.buffer], { type: 'audio/mpeg' });
+    const outName = outNameEl.value.trim()||"edited.m3u8";
+    const blob = new Blob([keep.join('\n')],{type:"application/x-mpegURL"});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'audio.mp3';
+    a.download = outName;
     a.click();
-    setProgress(1);
-    showStatus(st, 'ok', '✅ MP3 已生成并开始下载');
-  } catch (err) {
-    console.error(err);
-    const reason = (err && err.message) ? err.message : '未知错误（引擎加载被浏览器拦截）';
-    showStatus(st, 'err', '❌ 失败：' + reason + '。若直连被跨域拦截，可切换方案 B 填入代理重试。');
-  } finally {
-    btn.disabled = false;
-  }
 }
 
-function showStatus(el, type, msg) {
-  el.className = 'status show ' + type;
-  el.textContent = msg;
+function genShellCmd(){
+    const outName = outNameEl.value.trim()||"edited.m3u8";
+    const base = baseUrlEl.value.trim();
+    const keep = [];
+    // 只保留勾选的分片
+    const selectedIdx = [];
+    document.querySelectorAll('.sliceItem input:checked').forEach(cb=>{
+        selectedIdx.push(Number(cb.dataset.idx));
+    });
+    const selectedSlices = selectedIdx.map(i=>slices[i]);
+
+    for(const s of selectedSlices){
+        if(s.extinf) keep.push(s.extinf);
+        keep.push(s.url);
+    }
+    const m3u8Text = keep.join('\n');
+    const dir = outDirEl.value.trim();
+    const fname = outFileEl.value.trim();
+    const fmt = fmtSel.value;
+    const abr = abrSel.value;
+    let ffmpegArg;
+    if(fmt === "mp4"){
+        ffmpegArg = `-c copy "${dir}/${fname}.mp4"`;
+    }else{
+        ffmpegArg = `-c:a libmp3lame -b:a ${abr} "${dir}/${fname}.mp3"`;
+    }
+    const cmd = `cat > ${outName} <<'EOF'
+${m3u8Text}
+EOF
+ffmpeg -i ${outName} ${ffmpegArg}`;
+    cmdOutEl.innerText = cmd;
 }
 
-function loadDemo() {
-  document.getElementById('m3u8Input').value = `#EXTM3U
-#EXT-X-TARGETDURATION:10
-#EXTINF:10.000,
-https://test-streams.mux.dev/x36xhzz/url_2/url_526/193039199_mp4_h264_aac_ld_7.ts
-#EXTINF:10.000,
-https://test-streams.mux.dev/x36xhzz/url_2/url_527/193039199_mp4_h264_aac_ld_7.ts
-#EXTINF:10.000,
-https://test-streams.mux.dev/x36xhzz/url_2/url_528/193039199_mp4_h264_aac_ld_7.ts
-#EXT-X-ENDLIST`;
+function copyCmd(){
+    const t = cmdOutEl.innerText;
+    navigator.clipboard.writeText(t).then(()=>alert("✅ 已复制，直接粘贴 a-Shell"));
 }
+
+async function sendSave(){
+    const t = cmdOutEl.innerText;
+    try{
+        const r = await fetch("http://127.0.0.1:8001/save",{
+            method:"POST",
+            body:t,
+            headers:{"Content-Type":"text/plain"}
+        });
+        alert(await r.text());
+    }catch(e){
+        alert("提交失败："+e.message);
+    }
+}
+
+function clearAll(){
+    rawEl.value = "";
+    slices = [];
+    sliceListEl.innerHTML = "";
+    cmdOutEl.innerText = "";
+    previewVid.src = "";
+}
+window.parseM3U8 = parseM3U8;
+window.clearAll = clearAll;
+window.genShellCmd = genShellCmd;
+window.copyCmd = copyCmd;
+window.sendSave = sendSave;
+window.previewSlice = previewSlice;
 </script>
 </body>
 </html>
