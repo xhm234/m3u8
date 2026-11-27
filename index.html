@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>M3U8 编辑器 a-Shell base64 修复版</title>
+<title>M3U8 编辑器 a-Shell python写入版</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
 body{background:#12121a;color:#eee;padding:12px;line-height:1.5}
@@ -52,14 +52,11 @@ pre{background:#0b0b16;padding:10px;border-radius:6px;overflow-x:auto;font-size:
 </select>
 </div>
 <div>
-<label class="tip">base64 解码参数</label>
-<select id="b64Param">
-<option value="-d" selected>-d (GNU)</option>
-<option value="-D">-D (BSD/macOS)</option>
-</select>
+<label class="tip">m3u8文件名</label>
+<input id="m3u8Fn" value="edited.m3u8">
 </div>
 </div>
-<div class="tip">原生TextEncoder二进制编码，不再使用unescape兼容方案</div>
+<div class="tip">Python3写入文件，utf-8保真，避开bash解析问题；一行命令粘贴执行</div>
 </div>
 
 <div class="box">
@@ -88,11 +85,6 @@ pre{background:#0b0b16;padding:10px;border-radius:6px;overflow-x:auto;font-size:
 </div>
 
 <div class="box">
-<h3>解码预览（调试用，检查解码后m3u8是否正确）</h3>
-<pre id="debugPreview"></pre>
-</div>
-
-<div class="box">
 <h3>生成命令（整条一行复制）</h3>
 <pre id="cmdOut"></pre>
 <div class="row">
@@ -108,12 +100,11 @@ const rawEl = document.getElementById('m3u8Raw');
 const sliceListEl = document.getElementById('sliceList');
 const sliceStatEl = document.getElementById('sliceStat');
 const cmdOutEl = document.getElementById('cmdOut');
-const debugPreview = document.getElementById('debugPreview');
 const previewVid = document.getElementById('previewVideo');
 const outDirEl = document.getElementById('outDir');
 const outFileEl = document.getElementById('outName');
 const fmtSel = document.getElementById('fmtSel');
-const b64ParamEl = document.getElementById('b64Param');
+const m3u8FnEl = document.getElementById('m3u8Fn');
 
 function parseM3U8(){
     const raw = rawEl.value.trim();
@@ -168,13 +159,12 @@ function previewSlice(i){
     previewVid.play();
 }
 
-// 原生正确 base64 编码：TextEncoder → base64
-function strToB64(str){
-    const encoder = new TextEncoder();
-    const data = encoder.encode(str);
-    let bin = '';
-    for(let i=0;i<data.length;i++) bin += String.fromCharCode(data[i]);
-    return btoa(bin);
+function escapePyStr(s){
+    // python 单引号字符串内转义
+    return s.replace(/\\/g,"\\\\")
+            .replace(/'/g,"\\'")
+            .replace(/\n/g,"\\n")
+            .replace(/\r/g,"\\r");
 }
 
 function genShellCmd(){
@@ -194,15 +184,12 @@ function genShellCmd(){
         }
     }
     const m3u8Body = outLines.join("\n");
-    const b64 = strToB64(m3u8Body);
-
-    // 调试预览：直接显示将要送入管道的原始文本
-    debugPreview.textContent = m3u8Body;
+    const pyContent = escapePyStr(m3u8Body);
+    const m3u8Name = m3u8FnEl.value.trim();
 
     const dir = outDirEl.value.trim();
     const fname = outFileEl.value.trim();
     const fmt = fmtSel.value;
-    const b64p = b64ParamEl.value;
 
     let ffmpegArg;
     if(fmt === "mp4"){
@@ -210,7 +197,8 @@ function genShellCmd(){
     }else{
         ffmpegArg = `-vn -c:a libmp3lame -b:a 192k "${dir}/${fname}.mp3"`;
     }
-    const cmd = `echo '${b64}' | base64 ${b64p} | ffmpeg -i - ${ffmpegArg}`;
+    // 一行：python写文件 ; ffmpeg读取本地文件
+    const cmd = `python3 -c "open('${m3u8Name}','w',encoding='utf-8').write('${pyContent}')"; ffmpeg -i ${m3u8Name} ${ffmpegArg}`;
     cmdOutEl.innerText = cmd;
 }
 
@@ -233,7 +221,6 @@ function exportM3u8(){
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = "edited.m3u8";
-    a.click();
 }
 
 function copyCmd(){
@@ -261,7 +248,6 @@ function clearAll(){
     sliceListEl.innerHTML = "";
     sliceStatEl.textContent = "";
     cmdOutEl.innerText = "";
-    debugPreview.textContent = "";
     previewVid.src = "";
 }
 window.parseM3U8 = parseM3U8;
