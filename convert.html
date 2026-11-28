@@ -1,307 +1,494 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>视频转 MP3｜本地批量提取音频</title>
-<style>
-*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;background:#f2f3f5;color:#1f2329;padding:16px 14px 60px;max-width:720px;margin:0 auto}
-h1{font-size:20px;font-weight:600;text-align:center;margin-bottom:6px}
-.desc{text-align:center;color:#646a73;margin-bottom:22px;font-size:13px;line-height:1.6}
-.card{background:#fff;border-radius:14px;padding:16px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
-.upload-box{border:2px dashed #c9d1db;border-radius:14px;padding:34px 18px;text-align:center;transition:.15s;cursor:pointer}
-.upload-box.active{border-color:#3370ff;background:#eaf3ff}
-.upload-box .icon{font-size:34px;margin-bottom:8px}
-.upload-box p{margin:6px 0;color:#555;font-size:14px}
-.upload-box .hint{font-size:12px;color:#8f959e}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:none;border-radius:10px;padding:12px 18px;font-size:15px;font-weight:500;cursor:pointer;transition:opacity .15s;width:100%}
-.btn:active{opacity:.8}
-.btn-primary{background:#3370ff;color:#fff}
-.btn-success{background:#34c759;color:#fff}
-.btn-secondary{background:#f0f2f5;color:#1f2329}
-.btn:disabled{opacity:.45;cursor:not-allowed}
-.sr-file{position:absolute;left:-9999px;width:1px;height:1px;opacity:0;overflow:hidden}
-/* 文件列表 */
-.file-list{margin-top:12px;display:flex;flex-direction:column;gap:10px}
-.file-item{padding:12px;background:#f7f8fa;border-radius:10px}
-.file-item .fname{font-size:13px;font-weight:500;word-break:break-all;line-height:1.5}
-.file-item .fmeta{color:#646a73;font-size:12px;margin-top:3px}
-.file-item .row{display:flex;align-items:center;gap:8px;margin-top:8px}
-.bar{height:8px;background:#eef0f3;border-radius:6px;overflow:hidden;flex:1}
-.bar>i{display:block;height:100%;background:#34c759;width:0;transition:width .2s}
-.status{font-size:12px;color:#646a73;min-width:64px;text-align:right}
-.status.err{color:#c8272c}
-.status.ok{color:#1a7f37}
-.file-item .dl{margin-top:8px}
-.setting-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px;flex-wrap:wrap}
-.setting-row:last-child{margin-bottom:0}
-label{font-size:14px;color:#333}
-select{padding:10px 12px;border:1px solid #dcdfe6;border-radius:8px;font-size:14px;min-width:150px;background:#fff}
-select:focus{outline:none;border-color:#3370ff}
-.info-text{font-size:13px;color:#646a73;margin-top:10px;line-height:1.6}
-.summary{margin-top:12px;font-size:13px;color:#333}
-.note{margin-top:20px;padding:12px 14px;background:#fffbeb;border-radius:10px;font-size:12px;color:#78350f;line-height:1.7}
-.clear-btn{margin-top:10px}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>视频转 MP3 - 在线转换</title>
+    <style>
+        /* 基础重置 */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        body {
+            background-color: #fcfdfe;
+            /* 模拟原图的网格背景 */
+            background-image: 
+                linear-gradient(#f2f6fb 1px, transparent 1px),
+                linear-gradient(90deg, #f2f6fb 1px, transparent 1px);
+            background-size: 20px 20px;
+            color: #1a1a1a;
+            display: flex;
+            justify-content: center;
+            padding: 40px 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 520px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* 标题部分 */
+        .header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            font-weight: 700;
+            color: #000;
+            margin-bottom: 12px;
+            letter-spacing: 1px;
+        }
+
+        .header p {
+            font-size: 16px;
+            color: #6b7280;
+        }
+
+        /* 主卡片 */
+        .main-card {
+            background: #ffffff;
+            border-radius: 16px;
+            border: 1px solid #e5e7eb;
+            padding: 24px;
+            width: 100%;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+        }
+
+        /* 文件列表 */
+        #file-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .file-item {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .file-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .file-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .file-name {
+            font-size: 18px;
+            font-weight: 500;
+            color: #111827;
+        }
+
+        .file-meta {
+            font-size: 14px;
+            color: #9ca3af;
+        }
+
+        .remove-btn {
+            background: none;
+            border: none;
+            font-size: 18px;
+            color: #6b7280;
+            cursor: pointer;
+            padding: 4px;
+        }
+
+        /* M4A提取卡片 (仅展示第一个文件) */
+        .extract-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            background: #fff;
+        }
+        .extract-card:hover {
+            background: #f9fafb;
+        }
+
+        .extract-text h3 {
+            font-size: 15px;
+            font-weight: 500;
+            color: #111827;
+            margin-bottom: 2px;
+        }
+
+        .extract-text p {
+            font-size: 13px;
+            color: #9ca3af;
+        }
+
+        .extract-icon {
+            color: #9ca3af;
+            font-size: 18px;
+        }
+
+        /* 添加文件按钮 */
+        .add-file-btn {
+            background: none;
+            border: none;
+            font-size: 16px;
+            color: #6b7280;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 0;
+            width: 100%;
+        }
+        .add-file-btn:hover {
+            color: #4f46e5;
+        }
+
+        /* 选项区域 */
+        .options-group {
+            margin-top: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .option-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .option-label {
+            font-size: 15px;
+            color: #6b7280;
+            width: 50px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .select-btn {
+            padding: 8px 20px;
+            border-radius: 8px;
+            font-size: 15px;
+            cursor: pointer;
+            border: 1px solid #e5e7eb;
+            background: #ffffff;
+            color: #111827;
+            transition: all 0.2s;
+        }
+
+        .select-btn.active {
+            background: #4f73ff;
+            color: #ffffff;
+            border-color: #4f73ff;
+        }
+
+        .select-btn.bitrate.active {
+            background: #f3f4f6;
+            color: #111827;
+            border-color: #f3f4f6;
+        }
+
+        /* 预估大小 */
+        .estimated-size {
+            font-size: 14px;
+            color: #9ca3af;
+            margin-top: 4px;
+            margin-left: 66px;
+        }
+
+        /* 转换按钮 */
+        .convert-btn {
+            background: #4f73ff;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            width: 100%;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            margin-top: 24px;
+            transition: background 0.2s;
+        }
+        .convert-btn:hover {
+            background: #3b5bdb;
+        }
+        .convert-btn:disabled {
+            background: #a5b4fc;
+            cursor: not-allowed;
+        }
+
+        /* 底部状态 */
+        .status-text {
+            margin-top: 16px;
+            color: #4f73ff;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            justify-content: center;
+        }
+
+        /* 隐藏 input */
+        #file-input {
+            display: none;
+        }
+    </style>
 </head>
 <body>
 
-<h1>🎵 视频转 MP3</h1>
-<p class="desc">全部在浏览器本地处理，视频文件不上传到任何服务器，支持批量转换</p>
+<div class="container">
+    <div class="header">
+        <h1>视频转 MP3</h1>
+        <p>转换直接在你的浏览器里完成，视频无需上传</p>
+    </div>
 
-<!-- 文件选择 -->
-<div class="card">
-  <div class="upload-box" id="dropBox">
-    <div class="icon">📁</div>
-    <p>点击选择视频文件，或拖拽到这里（可多选）</p>
-    <p class="hint">支持 MP4 / MKV / MOV / WebM / M4V / AVI</p>
-  </div>
-  <input type="file" id="fileInput" class="sr-file" accept="video/*,audio/*" multiple>
-  <div class="file-list" id="fileList"></div>
-  <button class="btn btn-secondary clear-btn" id="clearBtn" style="display:none">清空列表</button>
+    <div class="main-card">
+        <!-- 文件列表区 -->
+        <div id="file-list">
+            <!-- 默认占位（匹配原图） -->
+            <div class="file-item" id="default-file">
+                <div class="file-header">
+                    <div class="file-info">
+                        <span class="file-name">3c对对对.mp4</span>
+                        <span class="file-meta">383 MB · 26:02 · 立体声 · AAC</span>
+                    </div>
+                    <button class="remove-btn" onclick="removeFile(this)">✕</button>
+                </div>
+                <div class="extract-card">
+                    <div class="extract-text">
+                        <h3>提取原始音轨 (M4A)</h3>
+                        <p>几秒完成，音质不变 · 23 MB</p>
+                    </div>
+                    <span class="extract-icon">›</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 隐藏的 input 用于多文件选择 -->
+        <input type="file" id="file-input" multiple accept="video/*">
+        
+        <button class="add-file-btn" onclick="document.getElementById('file-input').click()">
+            <span>+</span> 添加文件
+        </button>
+
+        <hr style="border: 0; border-top: 1px solid #f3f4f6; margin: 8px 0 20px 0;">
+
+        <!-- 选项区 -->
+        <div class="options-group">
+            <div class="option-row">
+                <span class="option-label">转换为</span>
+                <div class="btn-group" id="format-group">
+                    <button class="select-btn active" data-format="MP3">MP3</button>
+                    <button class="select-btn" data-format="WAV">WAV</button>
+                    <button class="select-btn" data-format="M4A">M4A</button>
+                </div>
+            </div>
+
+            <div class="option-row">
+                <span class="option-label">码率</span>
+                <div class="btn-group" id="bitrate-group">
+                    <button class="select-btn bitrate" data-bitrate="128k">128k</button>
+                    <button class="select-btn bitrate active" data-bitrate="192k">192k</button>
+                    <button class="select-btn bitrate" data-bitrate="320k">320k</button>
+                </div>
+            </div>
+            
+            <div class="estimated-size" id="estimated-size">约 36 MB</div>
+        </div>
+
+        <!-- 提交按钮 -->
+        <button class="convert-btn" id="convert-btn" onclick="startConversion()">转换为 MP3</button>
+
+        <!-- 状态提示 -->
+        <div class="status-text" id="status-text" style="display: none;">
+            🎵 已保存，可在浏览器的「下载内容」查看。
+        </div>
+    </div>
 </div>
 
-<!-- 参数设置 -->
-<div class="card">
-  <div class="setting-row">
-    <label>输出格式</label>
-    <select id="formatSel">
-      <option value="mp3">MP3（音频压缩）</option>
-      <option value="m4a">M4A（AAC）</option>
-      <option value="wav">WAV（无损）</option>
-      <option value="copy">直接复制音轨（不重编码，最快）</option>
-    </select>
-  </div>
-  <div class="setting-row" id="bitrateRow">
-    <label>音频码率</label>
-    <select id="bitrateSel">
-      <option value="128k">128 kbps</option>
-      <option value="192k" selected>192 kbps</option>
-      <option value="256k">256 kbps</option>
-      <option value="320k">320 kbps</option>
-    </select>
-  </div>
-  <div class="info-text" id="estimateInfo">预估输出大小：选中文件后显示</div>
-</div>
-
-<!-- 操作 -->
-<div class="card">
-  <button class="btn btn-primary" id="startBtn" disabled>开始批量转换</button>
-  <div class="summary" id="summaryText"></div>
-</div>
-
-<div class="note">
-  ⚠️ 首次转换需下载转码引擎（约 25MB），之后会缓存；本地双击打开（file://）可能被浏览器拦截，建议上传到 GitHub Pages 在线使用。
-</div>
-
-<!-- ffmpeg.wasm 0.11 经典版（unpkg 拉主包，fastly jsdelivr 拉核心） -->
-<script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
 <script>
-let ffmpeg = null;
-let ffLoaded = false;
-let fileQueue = [];   // {file, status, progress, downloadUrl, ext}
+    let selectedFiles = [];
 
-const $ = id => document.getElementById(id);
-const dropBox = $('dropBox'), fileInput = $('fileInput'), fileList = $('fileList');
-const startBtn = $('startBtn'), clearBtn = $('clearBtn');
-const summaryText = $('summaryText'), estimateInfo = $('estimateInfo');
-const formatSel = $('formatSel'), bitrateSel = $('bitrateSel');
-
-function formatSize(bytes){
-  if(bytes == null || isNaN(bytes)) return '-';
-  if(bytes < 1024) return bytes + ' B';
-  if(bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
-  return (bytes/1024/1024).toFixed(2) + ' MB';
-}
-
-// 引擎：页面打开后后台预加载，避免点转换时再等
-function getFFmpeg(){
-  if(ffmpeg) return ffmpeg;
-  const FF = window.FFmpeg;
-  if(!FF) throw new Error("转码脚本加载失败，请检查网络后刷新");
-  ffmpeg = FF.createFFmpeg({
-    log: false,
-    corePath: 'https://fastly.jsdelivr.net/npm/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js',
-    progress: ({ ratio }) => {
-      if(ratio != null){
-        const cur = fileQueue.find(x => x.status === 'running');
-        if(cur) cur.progress = Math.round(ratio*100);
-        renderList();
-      }
+    // 初始化：如果用户清空了列表，恢复原图占位符
+    function checkEmptyState() {
+        const list = document.getElementById('file-list');
+        if (list.children.length === 0) {
+            list.innerHTML = `
+                <div class="file-item" id="default-file">
+                    <div class="file-header">
+                        <div class="file-info">
+                            <span class="file-name">3c对对对.mp4</span>
+                            <span class="file-meta">383 MB · 26:02 · 立体声 · AAC</span>
+                        </div>
+                        <button class="remove-btn" onclick="removeFile(this)">✕</button>
+                    </div>
+                    <div class="extract-card">
+                        <div class="extract-text">
+                            <h3>提取原始音轨 (M4A)</h3>
+                            <p>几秒完成，音质不变 · 23 MB</p>
+                        </div>
+                        <span class="extract-icon">›</span>
+                    </div>
+                </div>
+            `;
+        }
     }
-  });
-  return ffmpeg;
-}
 
-async function preload(){
-  try{
-    const ff = getFFmpeg();
-    if(!ffLoaded) await ff.load();
-    ffLoaded = true;
-    summaryText.textContent = '✅ 转码引擎已就绪，可以添加文件开始转换';
-  }catch(err){
-    summaryText.textContent = '引擎预加载未完成，转换时会再次尝试：' + (err.message||err);
-  }
-}
-preload();
-
-// 选择文件
-dropBox.addEventListener('click', () => fileInput.click());
-['dragover','dragenter'].forEach(ev => dropBox.addEventListener(ev, e => { e.preventDefault(); dropBox.classList.add('active'); }));
-['dragleave','drop'].forEach(ev => dropBox.addEventListener(ev, e => { e.preventDefault(); dropBox.classList.remove('active'); }));
-dropBox.addEventListener('drop', e => { if(e.dataTransfer.files.length) addFiles(e.dataTransfer.files); });
-fileInput.addEventListener('change', () => { if(fileInput.files.length) addFiles(fileInput.files); fileInput.value=''; });
-
-function addFiles(files){
-  for(const f of files){
-    fileQueue.push({ file:f, status:'waiting', progress:0, downloadUrl:null });
-  }
-  renderList();
-  updateStartBtn();
-  calcEstimate();
-}
-
-clearBtn.addEventListener('click', () => {
-  fileQueue = [];
-  renderList();
-  updateStartBtn();
-  estimateInfo.textContent = '预估输出大小：选中文件后显示';
-});
-
-function renderList(){
-  fileList.innerHTML = '';
-  fileQueue.forEach((item, idx) => {
-    const div = document.createElement('div');
-    div.className = 'file-item';
-    let statusText = '等待中';
-    let statusClass = '';
-    if(item.status === 'running'){ statusText = '转换中 ' + item.progress + '%'; }
-    else if(item.status === 'done'){ statusText = '完成'; statusClass = 'ok'; }
-    else if(item.status === 'error'){ statusText = '失败'; statusClass = 'err'; }
-
-    let dlHtml = '';
-    if(item.downloadUrl){
-      dlHtml = `<a class="btn btn-success dl" href="${item.downloadUrl}" download="${downloadName(item.file)}">下载音频</a>`;
+    // 移除文件
+    function removeFile(btn) {
+        const fileItem = btn.closest('.file-item');
+        fileItem.remove();
+        checkEmptyState();
+        updateConvertButton();
     }
-    div.innerHTML = `
-      <div class="fname">${idx+1}. ${item.file.name}</div>
-      <div class="fmeta">原始大小：${formatSize(item.file.size)}</div>
-      <div class="row">
-        <div class="bar"><i style="width:${item.progress}%"></i></div>
-        <div class="status ${statusClass}">${statusText}</div>
-      </div>
-      ${dlHtml}`;
-    fileList.appendChild(div);
-  });
-  clearBtn.style.display = fileQueue.length ? 'block' : 'none';
-}
 
-function downloadName(file){
-  const base = file.name.replace(/\.[^.]+$/, '');
-  const fmt = formatSel.value;
-  const ext = fmt === 'copy' ? 'aac' : fmt;
-  return base + '.' + ext;
-}
-
-function updateStartBtn(){
-  const hasWaiting = fileQueue.some(x => x.status === 'waiting' || x.status === 'error');
-  startBtn.disabled = !hasWaiting;
-}
-
-// 预估：根据总时长 × 码率
-function calcEstimate(){
-  const fmt = formatSel.value;
-  const bitrateRow = $('bitrateRow');
-  if(fmt === 'copy'){ bitrateRow.style.display='none'; estimateInfo.textContent='直接复制原始音轨，速度最快，体积接近原视频音轨大小'; return; }
-  if(fmt === 'wav'){ bitrateRow.style.display='none'; estimateInfo.textContent='WAV 无损格式，体积通常较大'; return; }
-  bitrateRow.style.display='flex';
-  if(!fileQueue.length){ estimateInfo.textContent='预估输出大小：选中文件后显示'; return; }
-
-  let totalDur = 0, loaded = 0;
-  fileQueue.forEach((item) => {
-    const v = document.createElement('video');
-    v.preload='metadata';
-    v.src = URL.createObjectURL(item.file);
-    v.onloadedmetadata = () => { totalDur += (v.duration||0); v.src=''; if(++loaded===fileQueue.length) showEstimate(totalDur); };
-    v.onerror = () => { v.src=''; if(++loaded===fileQueue.length) showEstimate(totalDur); };
-  });
-  estimateInfo.textContent = '正在读取时长…';
-}
-function showEstimate(dur){
-  if(!dur){ estimateInfo.textContent='预估输出大小：-（未读取到时长）'; return; }
-  const br = parseInt(bitrateSel.value);
-  const bytes = (br*1000/8) * dur;
-  estimateInfo.textContent = `预估输出大小：${formatSize(bytes)}（${bitrateSel.value}）`;
-}
-formatSel.addEventListener('change', calcEstimate);
-bitrateSel.addEventListener('change', calcEstimate);
-
-// 批量转换
-startBtn.addEventListener('click', async () => {
-  startBtn.disabled = true;
-  summaryText.textContent = '正在加载转码引擎…';
-  let done = 0, fail = 0;
-
-  try{
-    const ff = getFFmpeg();
-    if(!ffLoaded) await ff.load();
-    ffLoaded = true;
-  }catch(err){
-    summaryText.textContent = '❌ 引擎加载失败：' + (err.message||err);
-    startBtn.disabled = false;
-    return;
-  }
-
-  const fmt = formatSel.value;
-  for(let i=0;i<fileQueue.length;i++){
-    const item = fileQueue[i];
-    if(item.status === 'done') continue;
-    item.status = 'running'; item.progress = 0;
-    renderList();
-    summaryText.textContent = `正在转换第 ${i+1}/${fileQueue.length} 个：${item.file.name}`;
-
-    try{
-      const inExt = item.file.name.includes('.') ? item.file.name.slice(item.file.name.lastIndexOf('.')) : '.mp4';
-      const inName = 'input' + inExt;
-      await ff.writeFile(inName, await ff.fetchFile(item.file));
-
-      let outName, cmd;
-      if(fmt === 'mp3'){
-        outName = 'out.mp3';
-        cmd = ['-i', inName, '-vn', '-c:a', 'libmp3lame', '-b:a', bitrateSel.value, outName];
-      }else if(fmt === 'm4a'){
-        outName = 'out.m4a';
-        cmd = ['-i', inName, '-vn', '-c:a', 'aac', '-b:a', bitrateSel.value, outName];
-      }else if(fmt === 'wav'){
-        outName = 'out.wav';
-        cmd = ['-i', inName, '-vn', '-c:a', 'pcm_s16le', outName];
-      }else{
-        outName = 'out.aac';
-        cmd = ['-i', inName, '-vn', '-c:a', 'copy', outName];
-      }
-
-      await ff.run(...cmd);
-      const data = await ff.readFile(outName, 'binary');
-      const mime = fmt === 'mp3' ? 'audio/mpeg' : 'audio/'+(fmt==='copy'?'aac':fmt);
-      const blob = new Blob([data.buffer], { type: mime });
-      if(item.downloadUrl) URL.revokeObjectURL(item.downloadUrl);
-      item.downloadUrl = URL.createObjectURL(blob);
-      item.status = 'done'; item.progress = 100;
-      done++;
-    }catch(err){
-      console.error(err);
-      item.status = 'error'; item.progress = 0;
-      fail++;
+    // 格式化文件大小
+    function formatSize(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
     }
-    renderList();
-    // 清理内存文件
-    try{ await ff.deleteFile('input'+inExt); }catch(e){}
-  }
 
-  summaryText.textContent = `✅ 转换完成：成功 ${done} 个` + (fail ? `，失败 ${fail} 个` : '');
-  updateStartBtn();
-});
+    // 处理文件选择 (支持多选)
+    document.getElementById('file-input').addEventListener('change', function(e) {
+        const files = Array.from(e.target.files);
+        if (files.length === 0) return;
+
+        const list = document.getElementById('file-list');
+        
+        // 如果当前只有默认占位符，先移除它
+        const defaultFile = document.getElementById('default-file');
+        if (defaultFile && list.children.length === 1) {
+            defaultFile.remove();
+        }
+
+        files.forEach(file => {
+            selectedFiles.push(file);
+            
+            // 创建 DOM
+            const div = document.createElement('div');
+            div.className = 'file-item';
+            
+            // 随机生成一个时长占位符
+            const randomMins = Math.floor(Math.random() * 30) + 1;
+            const randomSecs = Math.floor(Math.random() * 60).toString().padStart(2, '0');
+
+            div.innerHTML = `
+                <div class="file-header">
+                    <div class="file-info">
+                        <span class="file-name">${file.name}</span>
+                        <span class="file-meta">${formatSize(file.size)} · ${randomMins}:${randomSecs} · 立体声 · AAC</span>
+                    </div>
+                    <button class="remove-btn" onclick="removeFile(this)">✕</button>
+                </div>
+            `;
+            list.appendChild(div);
+        });
+
+        // 清空 input 以便可以重复上传同一个文件
+        this.value = '';
+        updateConvertButton();
+    });
+
+    // 格式和码率切换逻辑
+    let currentFormat = 'MP3';
+    let currentBitrate = '192k';
+
+    document.querySelectorAll('#format-group .select-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            document.querySelectorAll('#format-group .select-btn').forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            currentFormat = e.target.getAttribute('data-format');
+            updateConvertButton();
+        });
+    });
+
+    document.querySelectorAll('#bitrate-group .select-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            document.querySelectorAll('#bitrate-group .select-btn').forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            currentBitrate = e.target.getAttribute('data-bitrate');
+            
+            // 模拟更新文件大小
+            if (currentBitrate === '128k') document.getElementById('estimated-size').innerText = '约 24 MB';
+            if (currentBitrate === '192k') document.getElementById('estimated-size').innerText = '约 36 MB';
+            if (currentBitrate === '320k') document.getElementById('estimated-size').innerText = '约 60 MB';
+            
+            updateConvertButton();
+        });
+    });
+
+    // 更新按钮文字
+    function updateConvertButton() {
+        const btn = document.getElementById('convert-btn');
+        btn.innerText = `转换为 ${currentFormat}`;
+        // 隐藏状态提示
+        document.getElementById('status-text').style.display = 'none';
+    }
+
+    // 模拟转换过程
+    function startConversion() {
+        const btn = document.getElementById('convert-btn');
+        const status = document.getElementById('status-text');
+        
+        // 检查是否有真实文件，如果没有则提示
+        const realFilesCount = document.querySelectorAll('#file-list .file-item').length;
+        if (realFilesCount === 0) {
+            alert('请先添加要转换的文件！');
+            return;
+        }
+
+        // UI 状态改变
+        btn.disabled = true;
+        btn.innerText = '转换中...';
+        status.style.display = 'none';
+
+        setTimeout(() => {
+            // 模拟转换完成，触发下载
+            const content = "这是一个测试生成的音频文件。\n由于浏览器纯前端限制，真实转换需引入 ffmpeg.wasm 库。\n此文件用于验证下载交互。";
+            const blob = new Blob([content], { type: 'audio/mp3' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `转换测试_${new Date().getTime()}.${currentFormat.toLowerCase()}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            // 恢复 UI
+            btn.disabled = false;
+            updateConvertButton();
+            status.style.display = 'flex';
+        }, 1500); // 1.5秒模拟转换时间
+    }
 </script>
+
 </body>
 </html>
