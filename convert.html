@@ -130,14 +130,15 @@ const fileInfo = $('fileInfo');
 const fileName = $('fileName');
 const fileMeta = $('fileMeta');
 
-// 初始化 ffmpeg 实例（延迟到点击开始时再加载，避免页面打开就报错）
+// 初始化 ffmpeg 实例（0.12 新 API：FFmpegWASM.FFmpeg 类）
 function initFFmpeg(){
   if(ffmpeg) return ffmpeg;
-  const FF = window.FFmpegWASM || window.FFmpeg;
-  if(!FF) throw new Error("FFmpeg 引擎加载失败，请检查网络");
-  ffmpeg = FF.createFFmpeg({ log: false, progress: ({ ratio }) => {
+  const FF = window.FFmpegWASM;
+  if(!FF || !FF.FFmpeg) throw new Error("FFmpeg 引擎加载失败，请检查网络后刷新");
+  ffmpeg = new FF.FFmpeg();
+  ffmpeg.on('progress', ({ ratio }) => {
     if(ratio) progressInner.style.width = Math.round(ratio*100) + '%';
-  }});
+  });
   return ffmpeg;
 }
 
@@ -224,12 +225,14 @@ startBtn.addEventListener('click', async () => {
 
   try{
     const ff = initFFmpeg();
-    if(!ff.isLoaded()) await ff.load();
+    if(!ff.loaded) await ff.load();
 
     statusText.textContent = '正在读取文件…';
     // 输入文件名保留原扩展名，避免 ffmpeg 误判格式
     const inName = 'input' + (selectedFile.name.includes('.') ? selectedFile.name.slice(selectedFile.name.lastIndexOf('.')) : '');
-    ff.FS('writeFile', inName, await ff.fetchFile(selectedFile));
+    // 把 File 转成 Uint8Array 写入内存 FS
+    const buf = await selectedFile.arrayBuffer();
+    await ff.writeFile(inName, new Uint8Array(buf));
 
     const fmt = formatSel.value;
     let outName, cmd;
@@ -248,9 +251,9 @@ startBtn.addEventListener('click', async () => {
     }
 
     statusText.textContent = '正在提取 / 转码音频…';
-    await ff.run(...cmd);
+    await ff.exec(...cmd);
 
-    const data = ff.FS('readFile', outName);
+    const data = await ff.readFile(outName, 'binary');
     const blob = new Blob([data.buffer], { type: 'audio/' + (outName.split('.')[1]) });
     const url = URL.createObjectURL(blob);
     downloadBtn.href = url;
